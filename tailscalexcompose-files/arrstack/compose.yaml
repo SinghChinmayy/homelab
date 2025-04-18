@@ -1,0 +1,211 @@
+  #───────────────────────────────────────────────────────────
+  # Tailscale sidecar (network namespace for all arr services)
+  #───────────────────────────────────────────────────────────
+---
+version: "3.7"
+services:
+  tailscale-arr:
+    image: tailscale/tailscale:latest
+    hostname: ${TS_HOSTNAME}
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_EXTRA_ARGS=${TS_EXTRA_ARGS}
+      - TS_STATE_DIR=${TAILSCALE_STATE_DIR}
+      - TS_USERSPACE=false
+    volumes:
+      - ${Root}/tailscale-arr/state:${TAILSCALE_STATE_DIR}
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+    restart: unless-stopped
+  nginx:
+    image: nginx
+    depends_on:
+      - tailscale-nginx
+    network_mode: service:tailscale-nginx
+
+
+  
+  #───────────────────────────────────────────────────────────
+  # Reverse proxy (optional)
+  #───────────────────────────────────────────────────────────
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    depends_on:
+      - tailscale-arr
+    network_mode: service:tailscale-arr
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ${Root}/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./site:/srv
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+  #───────────────────────────────────────────────────────────
+  # RADARR
+  #───────────────────────────────────────────────────────────
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    network_mode: service:tailscale-arr
+    depends_on:
+      tailscale-arr:
+        condition: service_healthy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${Root}/radarr/config:/config
+      - ${Root}/radarr/movies:/movies
+      - ${Root}/qbittorrent/downloads:/downloads
+    restart: unless-stopped
+
+  #───────────────────────────────────────────────────────────
+  # SONARR
+  #───────────────────────────────────────────────────────────
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    network_mode: service:tailscale-arr
+    depends_on:
+      tailscale-arr:
+        condition: service_healthy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${Root}/sonarr/config:/config
+      - ${Root}/sonarr/tvseries:/tv
+      - ${Root}/qbittorrent/downloads:/downloads
+    restart: unless-stopped
+
+  #───────────────────────────────────────────────────────────
+  # PROWLARR
+  #───────────────────────────────────────────────────────────
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    network_mode: service:tailscale-arr
+    depends_on:
+      tailscale-arr:
+        condition: service_healthy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${Root}/prowlarr/config:/config
+    restart: unless-stopped
+
+  #───────────────────────────────────────────────────────────
+  # BAZARR
+  #───────────────────────────────────────────────────────────
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    network_mode: service:tailscale-arr
+    depends_on:
+      tailscale-arr:
+        condition: service_healthy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${Root}/bazarr/config:/config
+      - ${Root}/radarr/movies:/movies
+      - ${Root}/sonarr/tvseries:/tv
+    restart: unless-stopped
+
+  #───────────────────────────────────────────────────────────
+  # LIDARR
+  #───────────────────────────────────────────────────────────
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    network_mode: service:tailscale-arr
+    depends_on:
+      tailscale-arr:
+        condition: service_healthy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${Root}/lidarr/config:/config
+      - ${Root}/lidarr/music:/music
+      - ${Root}/qbittorrent/downloads:/downloads
+    restart: unless-stopped
+
+  #───────────────────────────────────────────────────────────
+  # READARR
+  #───────────────────────────────────────────────────────────
+  readarr:
+    image: lscr.io/linuxserver/readarr:develop
+    container_name: readarr
+    network_mode: service:tailscale-arr
+    depends_on:
+      tailscale-arr:
+        condition: service_healthy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${Root}/readarr/config:/config
+      - ${Root}/readarr/books:/books
+      - ${Root}/qbittorrent/downloads:/downloads
+    restart: unless-stopped
+
+  #───────────────────────────────────────────────────────────
+  # QBITTORRENT
+  #───────────────────────────────────────────────────────────
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: service:tailscale-arr
+    depends_on:
+      tailscale-arr:
+        condition: service_healthy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=${WEBUI_PORT}
+      - TORRENTING_PORT=${TORRENTING_PORT}
+    volumes:
+      - ${Root}/qbittorrent/config:/config
+      - ${Root}/qbittorrent/downloads:/downloads
+    restart: unless-stopped
+
+  #───────────────────────────────────────────────────────────
+  # JELLYFIN
+  #───────────────────────────────────────────────────────────
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    network_mode: service:tailscale-arr
+    depends_on:
+      tailscale-arr:
+        condition: service_healthy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${Root}/jellyfin/config:/config
+      - ${Root}/sonarr/tvseries:/data/tvshows
+      - ${Root}/radarr/movies:/data/movies
+    restart: unless-stopped
