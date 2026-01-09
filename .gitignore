@@ -1,0 +1,53 @@
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Tailscale state and config
+**/tailscale*/state/
+**/tailscale*/config/
+
+# Service configuration directories with sensitive data
+**/config/
+**/data/
+**/appdata/
+
+# Media files
+**/movies/
+**/tvshows/
+**/tvseries/
+**/tv/
+**/music/
+**/books/
+**/Downloads/
+**/downloads/
+
+# Caddy data
+caddy_data/
+caddy_config/
+
+# Backup files
+*.backup
+*.bak
+*-backup-*.tar.gz
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Docker volumes
+volumes/
